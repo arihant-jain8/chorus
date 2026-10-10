@@ -1,0 +1,11 @@
+[package]
+name = "chorus-egui"
+version = "0.1.0"
+edition = "2024"
+
+# The original egui desktop UI, kept as a working frontend on top of the engine.
+[dependencies]
+chorus = { path = "../chorus" }
+eframe = "0.36.2"
+cpal = "0.18.2"
+volumecontrol = "0.1.4"

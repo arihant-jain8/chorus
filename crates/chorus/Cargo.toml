@@ -1,0 +1,11 @@
+[package]
+name = "chorus"
+version = "0.1.0"
+edition = "2024"
+
+# The pure audio engine. No UI dependencies live here — every frontend
+# (desktop/Tauri, chorus-egui, the examples) depends on this one crate.
+[dependencies]
+cpal = "0.18.2"
+ringbuf = "0.5.1"
+volumecontrol = "0.1.4"

@@ -1,0 +1,16 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/chorus",
+    "crates/chorus-egui",
+    "desktop/src-tauri",
+]
+
+# Release optimizations live at the workspace root (Cargo ignores [profile] in member crates).
+# These were moved here from the Tauri crate's Cargo.toml.
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = 3
+panic = "abort"
+strip = true

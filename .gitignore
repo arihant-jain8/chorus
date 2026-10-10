@@ -1,0 +1,11 @@
+# Rust build output (shared workspace target dir)
+/target
+
+# Node / frontend
+node_modules/
+dist/
+
+# Logs & OS cruft
+*.log
+.DS_Store
+Thumbs.db
