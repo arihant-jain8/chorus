@@ -25,12 +25,9 @@ fn main() {
         .filter(|d| d.to_string() != input_device.to_string())
         .map(|d| (d, 1.0))
         .collect();
-    
 
     // size of ring buffer to hold exactly 100ms of buffer data from the source device
-    let capacity = (input_config.sample_rate as usize)
-        * (input_config.channels as usize)
-        / 10;
+    let capacity = (input_config.sample_rate as usize) * (input_config.channels as usize) / 10;
 
     let router = Router::new(&input_device, &input_config, sink_devices, capacity)
         .expect("Error building router");

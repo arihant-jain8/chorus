@@ -1,5 +1,4 @@
-use std::sync::mpsc::{channel, Sender};
-use std::sync::Mutex;
+use chorus::app::Chorus;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
@@ -8,30 +7,24 @@ fn greet(name: &str) -> String {
 }
 
 #[tauri::command]
-fn set_volume(index: usize, volume: f32, state: tauri::State<'_, Mutex<Sender<Command>>>) {
-    let _ = state.lock().unwrap().send(Command::SetVolume { index, volume });
+fn set_volume(index: usize, volume: f32, state: tauri::State<'_, Chorus>) {
+    state.set_sink_volume(index, volume);
 }
 
-enum Command {
-    SetVolume { index: usize, volume: f32 },
+#[tauri::command]
+fn set_source_volume(volume: f32, state: tauri::State<'_, Chorus>) {
+    state.set_source_volume(volume);
 }
+
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let (tx, rx) = channel::<Command>();
-
-    std::thread::spawn(move || {
-        for cmd in rx {
-            match cmd {
-                Command::SetVolume { index, volume } => println!("{} {}", index, volume),
-            }
-        }
-    });
+    let chorus = Chorus::launch(); // 1) state the engine, get handle
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .manage(Mutex::new(tx))
-        .invoke_handler(tauri::generate_handler![greet, set_volume])
+        .manage(chorus) // hand the handle to Tauri
+        .invoke_handler(tauri::generate_handler![greet, set_volume, set_source_volume])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

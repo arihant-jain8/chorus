@@ -41,7 +41,7 @@ struct DeviceRow {
 impl ChorusApp {
     fn new() -> Self {
         let (source_device, source_config, source_name, devices) = Self::enumerate();
-        
+
         ChorusApp {
             source_device,
             source_config,
@@ -55,7 +55,7 @@ impl ChorusApp {
             sink_names: Vec::new(),
             sink_volumes: Vec::new(),
             sink_muted: Vec::new(),
-            
+
             devices,
 
             router: None,
@@ -108,17 +108,20 @@ impl ChorusApp {
         };
         let new_name = new_source.to_string();
 
-        if new_name == self.source_name { return; }
+        if new_name == self.source_name {
+            return;
+        }
 
         let new_config = match new_source.default_output_config() {
             Ok(c) => c.config(),
             Err(_) => return,
         };
 
-        let capacity = (new_config.sample_rate as usize)
-                            * (new_config.channels as usize) / 10;
-        
-        let sink_specs: Vec<(cpal::Device, f32)> = self.devices.iter()
+        let capacity = (new_config.sample_rate as usize) * (new_config.channels as usize) / 10;
+
+        let sink_specs: Vec<(cpal::Device, f32)> = self
+            .devices
+            .iter()
             .filter(|r| r.selected && r.name != new_name)
             .map(|r| (r.device.clone(), r.volume))
             .collect();
@@ -128,7 +131,7 @@ impl ChorusApp {
                 self.sink_names = r.sinks().iter().map(|s| s.device_name.clone()).collect();
                 self.sink_volumes = r.sinks().iter().map(|s| s.get_volume().clone()).collect();
                 self.sink_muted = vec![false; self.sink_names.len()];
-                
+
                 self.source_name = new_name;
                 self.source_device = new_source;
                 self.source_config = new_config;
@@ -176,7 +179,12 @@ impl eframe::App for ChorusApp {
                     * (self.source_config.channels as usize)
                     / 10; // ~100ms os buffer, at any sample rate
 
-                match Router::new(&self.source_device, &self.source_config, sink_devices, capacity) {
+                match Router::new(
+                    &self.source_device,
+                    &self.source_config,
+                    sink_devices,
+                    capacity,
+                ) {
                     Ok(r) => {
                         self.sink_names = r.sinks().iter().map(|s| s.device_name.clone()).collect();
                         self.sink_volumes = r.sinks().iter().map(|s| s.get_volume()).collect();
@@ -212,8 +220,12 @@ impl eframe::App for ChorusApp {
                         }
                     }
                 }
-                
-                let label = if self.source_muted { "Undeafen" } else { "Deafen" };
+
+                let label = if self.source_muted {
+                    "Undeafen"
+                } else {
+                    "Deafen"
+                };
                 if ui.button(label).clicked() {
                     self.source_muted = !self.source_muted;
                     if let Some(router) = &self.router {
@@ -232,7 +244,11 @@ impl eframe::App for ChorusApp {
                     ui.label(&self.sink_names[i]);
 
                     let resp = ui.add(egui::Slider::new(&mut self.sink_volumes[i], 0.0..=1.0));
-                    let label = if self.sink_muted[i] { "Undeafen" } else { "Deafen" };
+                    let label = if self.sink_muted[i] {
+                        "Undeafen"
+                    } else {
+                        "Deafen"
+                    };
                     let mute_clicked = ui.button(label).clicked();
 
                     if mute_clicked {
@@ -240,7 +256,11 @@ impl eframe::App for ChorusApp {
                     }
                     if resp.changed() || mute_clicked {
                         if let Some(router) = &self.router {
-                            let effective_vol = if self.sink_muted[i] { 0.0 } else { self.sink_volumes[i] };
+                            let effective_vol = if self.sink_muted[i] {
+                                0.0
+                            } else {
+                                self.sink_volumes[i]
+                            };
                             router.set_volume(i, effective_vol);
                         }
                     }

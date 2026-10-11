@@ -5,7 +5,7 @@ use crate::output::OutputSink;
 use crate::source::CaptureSource;
 
 pub struct Router {
-    source: CaptureSource,
+    _source: CaptureSource,
     sinks: Vec<OutputSink>,
 }
 
@@ -36,9 +36,9 @@ impl Router {
             }
         }
 
-        let source = CaptureSource::new(source_device, source_config, producers)?;
+        let _source = CaptureSource::new(source_device, source_config, producers)?;
 
-        Ok(Router { source, sinks })
+        Ok(Router { _source, sinks })
     }
 
     pub fn set_volume(&self, index: usize, v: f32) {
