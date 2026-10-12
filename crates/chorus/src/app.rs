@@ -6,22 +6,23 @@ use crate::router::Router;
 
 use cpal::Device;
 use cpal::traits::{DeviceTrait, HostTrait};
+use serde::Serialize;
 use volumecontrol::AudioDevice;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize)]
 pub struct DeviceInfo {
     pub name: String,
     pub is_default: bool,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize)]
 pub struct SinkState {
     pub name: String,
     pub volume: f32,
     pub muted: bool,
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Serialize)]
 pub struct State {
     pub running: bool,
     pub source_name: String,

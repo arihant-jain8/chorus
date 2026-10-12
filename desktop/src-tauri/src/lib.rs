@@ -1,4 +1,4 @@
-use chorus::app::Chorus;
+use chorus::app::{Chorus, State};
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
@@ -16,6 +16,10 @@ fn set_source_volume(volume: f32, state: tauri::State<'_, Chorus>) {
     state.set_source_volume(volume);
 }
 
+#[tauri::command]
+fn get_state(state: tauri::State<'_, Chorus>) -> State {
+    state.state()
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -24,7 +28,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .manage(chorus) // hand the handle to Tauri
-        .invoke_handler(tauri::generate_handler![greet, set_volume, set_source_volume])
+        .invoke_handler(tauri::generate_handler![greet, set_volume, set_source_volume, get_state])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
