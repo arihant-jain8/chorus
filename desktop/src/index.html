@@ -10,14 +10,37 @@
 
   <body>
     <main class="container">
-      <h1>Chorus</h1>
+      <header class="app-header">
+        <h1>Chorus</h1>
+        <div class="status">
+          <span class="status-dot"></span>
+          <span class="status-label">Running</span>
+          <button class="stop-btn">Stop</button>
+        </div>
+      </header>
 
-      <div id="source-name"></div>
-      <input id="source-volume" type="range" min="0" max="1" step="0.01">
+      <section class="section">
+        <p class="section-label">Source</p>
+        <div class="card">
+          <div class="card-top">
+            <span class="icon">🔊</span>
+            <span class="device-name" id="source-name"></span>
+            <span class="badge">Capturing</span>
+          </div>
 
-      <div id="sinks"></div>
+          <div class="controls">
+            <input type="range" class="volume-slider" id="source-volume" min="0" max="1" step="0.01" />
+            <span class="percent" id="source-percent">0%</span>
+            <button class="mute-btn" id="source-mute">🔇</button>
+          </div>
+        </div>
+      </section>
 
-      <p id="greet-msg"></p>
+      <section class="section">
+        <p class="section-label">Outputs</p>
+        <p class="section-sub">Mirroring to</p>
+        <div id="sinks"></div>
+      </section>
     </main>
   </body>
 </html>
