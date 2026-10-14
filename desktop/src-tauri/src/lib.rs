@@ -17,6 +17,15 @@ fn set_source_volume(volume: f32, state: tauri::State<'_, Chorus>) {
 }
 
 #[tauri::command]
+fn set_source_mute(muted: bool, state: tauri::State<'_, Chorus>) {
+    state.set_source_mute(muted);
+}
+#[tauri::command]
+fn set_sink_mute(index: usize, muted: bool, state: tauri::State<'_, Chorus>) {
+    state.set_sink_mute(index, muted);
+}
+
+#[tauri::command]
 fn get_state(state: tauri::State<'_, Chorus>) -> State {
     state.state()
 }
@@ -28,7 +37,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .manage(chorus) // hand the handle to Tauri
-        .invoke_handler(tauri::generate_handler![greet, set_volume, set_source_volume, get_state])
+        .invoke_handler(tauri::generate_handler![greet, set_volume, set_source_volume, get_state, set_source_mute, set_sink_mute])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

@@ -1,11 +1,45 @@
 :root {
-  --bg: #15171c;
-  --card: #1e2128;
-  --card-border: #2a3e37;
-  --text: #e8eaed;
-  --text-muted: #9aa0a8;
-  --accent: #7c5cff;
-  --green: #3ecf8e;
+  /* Backgrounds */
+  --bg: #15171C;
+  --bg-elevated: #191C23;
+  --card: #1E2128;
+  --card-hover: #252936;
+  --card-active: #292443;
+
+  /* Borders */
+  --border: #303541;
+  --border-strong: #41485A;
+
+  /* Typography */
+  --text: #E8EAED;
+  --text-secondary: #C1C6D0;
+  --text-muted: #9AA0A8;
+  --text-disabled: #656B78;
+
+  /* Brand */
+  --accent: #7C5CFF;
+  --accent-hover: #927AFF;
+  --accent-pressed: #6344E8;
+  --accent-secondary: #5B8CFF;
+  --accent-soft: #292344;
+
+  /* Status */
+  --success: #3ECF8E;
+  --success-soft: #19382D;
+  --danger: #FF647C;
+  --warning: #F5B955;
+
+  /* Audio controls */
+  --slider-track: #303747;
+  --slider-fill: #7C5CFF;
+  --knob: #F5F6FA;
+  --toggle-off: #3A4050;
+  --meter: #3ECF8E;
+
+  /* Effects */
+  --overlay: #0B0D12;
+  --card-radius: 14px;
+  --panel-radius: 16px;
 }
 
 * {box-sizing: border-box; }
@@ -36,13 +70,14 @@ body {
 .status-dot {
   width: 9px; height: 9px;
   border-radius: 50%;
-  background: var(--green);
+  background: var(--success);
 }
 .status-label { color: var(--text-muted); font-size: 14px; }
 .stop-btn {
   background: transparent;
-  color: car(--text);
-  border: 1px solid var(--card-border);
+  color: var(--danger);
+  border-color: var(--danger);
+  border: 1px solid var(--border);
   border-radius:  8px;
   padding: 6px 14px;
   cursor: pointer;
@@ -68,7 +103,7 @@ body {
 /* Cards */
 .card {
   background: var(--card);
-  border: 1px solid var(--card-border);
+  border: 1px solid var(--border);
   border-radius: 14px;
   padding: 16px;
   margin-bottom: 12px;
@@ -83,7 +118,7 @@ body {
 .device-name { font-size: 15px; font-weight: 500; flex: 1; }
 .badge {
   font-size: 11px;
-  color: var(--accent);
+  color: var(--accent-soft);
   padding: 3px 9px;
   border-radius: 999px
 }
@@ -112,3 +147,4 @@ body {
   padding: 15px;
 }
 .mute-btn:hover { color: var(--text); }
+.mute-btn.muted { color: var(--danger); }

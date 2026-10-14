@@ -41,7 +41,7 @@ impl Router {
         Ok(Router { _source, sinks })
     }
 
-    pub fn set_volume(&self, index: usize, v: f32) {
+    pub fn set_sink_volume(&self, index: usize, v: f32) {
         if index < self.sinks.len() {
             self.sinks[index].set_volume(v);
         }
@@ -63,5 +63,11 @@ impl Router {
 
     pub fn set_source_mute(&self, muted: bool) -> Result<(), volumecontrol::AudioError> {
         volumecontrol::AudioDevice::from_default()?.set_mute(muted)
+    }
+
+    pub fn set_sink_mute(&self, index: usize, muted: bool) {
+        if index < self.sinks.len() {
+            self.sinks[index].set_mute(muted);
+        }
     }
 }

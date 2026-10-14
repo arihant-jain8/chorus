@@ -25,8 +25,11 @@ pub struct SinkState {
 #[derive(Clone, Debug, Default, Serialize)]
 pub struct State {
     pub running: bool,
+
     pub source_name: String,
     pub source_volume: f32,
+    pub source_muted: bool,
+
     pub devices: Vec<DeviceInfo>,
     pub sinks: Vec<SinkState>,
 }
@@ -34,6 +37,8 @@ pub struct State {
 pub enum Command {
     SetSinkVolume { index: usize, volume: f32 },
     SetSourceVolume(f32),
+    SetSinkMute { index: usize, muted: bool },
+    SetSourceMute(bool),
 }
 
 pub struct Chorus {
@@ -87,8 +92,11 @@ fn build(state: &Arc<Mutex<State>>) -> (Router, String) {
     {
         let mut s = state.lock().unwrap();
         s.running = true;
+
         s.source_name = source_name.clone();
         s.source_volume = AudioDevice::from_default().and_then(|d| d.get_vol()).map(|v| v as f32 / 100.0).unwrap_or(1.0);
+        s.source_muted = false;
+
         s.devices = device_list;
         s.sinks = router.sinks().iter().map(|sink| SinkState{
             name: sink.device_name.clone(),
@@ -115,7 +123,7 @@ impl Chorus {
                 // (4) DJ loop - handle cards forever
                 match rx.recv_timeout(Duration::from_secs(1)) {
                     Ok(Command::SetSinkVolume { index, volume }) => {
-                        router.set_volume(index, volume);
+                        router.set_sink_volume(index, volume);
                         let mut s = state_thread.lock().unwrap();
                         if let Some(sink) = s.sinks.get_mut(index) {
                             sink.volume = volume;
@@ -126,6 +134,19 @@ impl Chorus {
                         match router.set_source_volume(volume) {
                             Ok(()) => { state_thread.lock().unwrap().source_volume = volume; }
                             Err(e) => eprintln!("source volume error: {}", e),
+                        }
+                    }
+
+                    Ok(Command::SetSourceMute(muted)) => match router.set_source_mute(muted) {
+                        Ok(()) => state_thread.lock().unwrap().source_muted = muted,
+                        Err(e) => eprintln!("source mute error: {}", e),
+                    }
+
+                    Ok(Command::SetSinkMute { index, muted }) => {
+                        router.set_sink_mute(index, muted);
+                        let mut s = state_thread.lock().unwrap();
+                        if let Some(sink) = s.sinks.get_mut(index) {
+                            sink.muted = muted;
                         }
                     }
     
@@ -163,5 +184,13 @@ impl Chorus {
 
     pub fn set_source_volume(&self, volume: f32) {
         let _ = self.tx.send(Command::SetSourceVolume(volume));
+    }
+
+    pub fn set_source_mute(&self, muted: bool) {
+        let _ = self.tx.send(Command::SetSourceMute(muted));
+    }
+
+    pub fn set_sink_mute(&self, index: usize, muted: bool) {
+        let _ = self.tx.send(Command::SetSinkMute { index, muted });
     }
 }

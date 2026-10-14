@@ -11,6 +11,7 @@ async function renderState(state) {
   const sourceNameEl = document.querySelector("#source-name");
   const sourceVolumeEl = document.querySelector("#source-volume");
   const sourcePercentEl = document.querySelector("#source-percent");
+  const sourceMuteEl = document.querySelector("#source-mute");
   
   sourceNameEl.textContent = state.source_name;
   sourceVolumeEl.value = state.source_volume;
@@ -21,6 +22,17 @@ async function renderState(state) {
     const v = Number(e.target.value);
     sourcePercentEl.textContent = pct(v);
     invoke("set_source_volume", { volume: v });
+  }
+  
+  let sourceMuted = state.source_muted;
+  sourceMuteEl.textContent = sourceMuted ? "🔇" : "🔊";
+  sourceMuteEl.classList.toggle("muted", sourceMuted);
+
+  sourceMuteEl.onclick = () => {
+    sourceMuted = !sourceMuted;
+    sourceMuteEl.textContent = sourceMuted ? "🔇" : "🔊";
+    sourceMuteEl.classList.toggle("muted", sourceMuted);
+    invoke("set_source_mute", { muted: sourceMuted });
   }
   
   // --- Sinks ---
@@ -60,15 +72,24 @@ async function renderState(state) {
     percentEl.className = "percent";
     percentEl.textContent = pct(sink.volume);
 
-    const muteEl = document.createElement("button");
-    muteEl.className = "mute-btn";
-    muteEl.textContent = "🔇";
-
     sliderEl.oninput = (e) => {
       const v = Number(e.target.value);
       percentEl.textContent = pct(v);
       invoke("set_volume", {index: i, volume: v });
     };
+
+    const muteEl = document.createElement("button");
+    muteEl.className = "mute-btn";
+    let muted = sink.muted;
+    muteEl.textContent = muted ? "🔇" : "🔊";
+    muteEl.classList.toggle("muted", muted);
+
+    muteEl.onclick = () => {
+      muted = !muted;
+      muteEl.textContent = muted ? "🔇" : "🔊";
+      muteEl.classList.toggle("muted", muted);
+      invoke("set_sink_mute", { index: i, muted });
+    }
 
     controlsEl.appendChild(sliderEl);
     controlsEl.appendChild(percentEl);
