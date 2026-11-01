@@ -261,7 +261,7 @@ impl eframe::App for ChorusApp {
                             } else {
                                 self.sink_volumes[i]
                             };
-                            router.set_volume(i, effective_vol);
+                            router.set_sink_volume(i, effective_vol);
                         }
                     }
                 });

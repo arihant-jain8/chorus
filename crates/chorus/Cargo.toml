@@ -8,5 +8,5 @@ edition = "2024"
 [dependencies]
 cpal = "0.18.2"
 ringbuf = "0.5.1"
-serde = "1.0.229"
+serde = {version= "1.0.229", features = ["derive"]}
 volumecontrol = "0.1.4"

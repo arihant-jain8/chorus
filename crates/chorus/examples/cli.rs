@@ -74,7 +74,7 @@ fn main() {
         match (tokens[0].parse::<usize>(), tokens[1].parse::<f32>()) {
             (Ok(ind), Ok(vol)) => {
                 if ind < router.sink_counts() {
-                    router.set_volume(ind, vol);
+                    router.set_sink_volume(ind, vol);
                     println!("setting {ind} -> {vol}");
                 } else {
                     println!(
