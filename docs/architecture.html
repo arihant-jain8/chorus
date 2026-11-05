@@ -1,0 +1,609 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Chorus Architecture Map</title>
+<style>
+  /* Readable single-column document. One struct per row, generous whitespace,
+     large type. Detail folds into each card. Two flows color-coded:
+     green = audio path, purple = control path. */
+  :root {
+    --bg: #F7F8FA;
+    --card: #FFFFFF;
+    --border: #E3E6EC;
+    --border-strong: #CED3DD;
+    --fg: #1C2027;
+    --fg-dim: #566070;
+    --fg-faint: #8992A1;
+    --accent: #6A4BFF;      /* control path */
+    --accent-soft: #F0ECFF;
+    --audio: #0C9A63;       /* audio path */
+    --audio-soft: #E4F5EC;
+    --event: #B9770E;       /* event path (Rust→JS) */
+    --mono: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+    --sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --maxw: 800px;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #121419; --card: #1C1F26; --border: #2A2F39; --border-strong: #3A4150;
+      --fg: #E8EBF1; --fg-dim: #A9B1BF; --fg-faint: #6B7382;
+      --accent: #8B6DFF; --accent-soft: #221C3A;
+      --audio: #44D395; --audio-soft: #14301F; --event: #E0A33A;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #121419; --card: #1C1F26; --border: #2A2F39; --border-strong: #3A4150;
+    --fg: #E8EBF1; --fg-dim: #A9B1BF; --fg-faint: #6B7382;
+    --accent: #8B6DFF; --accent-soft: #221C3A;
+    --audio: #44D395; --audio-soft: #14301F; --event: #E0A33A;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg); color: var(--fg);
+    font-family: var(--sans); font-size: 17px; line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+  [hidden] { display: none !important; }
+
+  .wrap {
+    max-width: var(--maxw); margin: 0 auto;
+    padding-left: max(22px, env(safe-area-inset-left, 0px));
+    padding-right: max(22px, env(safe-area-inset-right, 0px));
+    padding-block: 40px 96px;
+  }
+
+  /* toolbar */
+  .toolbar {
+    position: sticky; top: 0; z-index: 20;
+    background: color-mix(in srgb, var(--bg) 85%, transparent);
+    backdrop-filter: blur(10px); border-bottom: 1px solid var(--border);
+  }
+  .toolbar-inner {
+    max-width: var(--maxw); margin: 0 auto;
+    padding-left: max(22px, env(safe-area-inset-left, 0px));
+    padding-right: max(22px, env(safe-area-inset-right, 0px));
+    padding-block: 12px; display: flex; align-items: center; gap: 10px;
+  }
+  .toolbar .brand { font-weight: 650; font-size: 0.95rem; }
+  .toolbar .brand b { color: var(--accent); font-weight: 650; }
+  .toolbar .spacer { flex: 1; }
+  .btn {
+    font: inherit; font-size: 0.8rem; cursor: pointer;
+    padding: 7px 13px; border-radius: 9px;
+    border: 1px solid var(--border-strong); background: var(--card); color: var(--fg-dim);
+  }
+  .btn:hover { color: var(--fg); border-color: var(--accent); }
+  .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* header */
+  h1 {
+    font-size: clamp(1.9rem, 1.4rem + 2vw, 2.6rem);
+    margin: 20px 0 10px; letter-spacing: -0.025em; line-height: 1.15; text-wrap: balance;
+  }
+  .lede { color: var(--fg-dim); font-size: 1.1rem; margin: 0 0 32px; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 10px 26px; margin: 0 0 10px; }
+  .legend .item { display: flex; align-items: center; gap: 10px; font-size: 0.92rem; color: var(--fg-dim); }
+  .dot { width: 14px; height: 14px; border-radius: 50%; flex: none; }
+  .dot.audio { background: var(--audio); }
+  .dot.control { background: var(--accent); }
+  .dot.event { background: var(--event); }
+  .maint { font-size: 0.9rem; color: var(--fg-faint); margin: 0 0 44px; }
+  .maint code { font-family: var(--mono); color: var(--fg-dim); font-size: 0.86em; }
+
+  /* section heading */
+  .h2 {
+    font-size: 0.8rem; letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--fg-faint); font-weight: 700; margin: 0 0 20px;
+    padding-bottom: 10px; border-bottom: 1px solid var(--border);
+  }
+
+  /* two flows: side-by-side vertical step lists */
+  .flows { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 64px; }
+  @media (max-width: 640px) { .flows { grid-template-columns: 1fr; } }
+  .flow-col h3 { margin: 0 0 16px; font-size: 1rem; display: flex; align-items: center; gap: 9px; }
+  .flow-col.audio h3 { color: var(--audio); }
+  .flow-col.control h3 { color: var(--accent); }
+  .flow-col.event h3 { color: var(--event); }
+  .flow-col.event { grid-column: 1 / -1; }
+  .steps { list-style: none; margin: 0; padding: 0; }
+  .steps li {
+    position: relative; padding: 9px 0 9px 26px;
+    font-family: var(--mono); font-size: 0.88rem; line-height: 1.4;
+  }
+  .steps li::before {
+    content: ""; position: absolute; left: 5px; top: 17px; width: 7px; height: 7px;
+    border-radius: 50%; background: var(--border-strong);
+  }
+  .steps li:not(:last-child)::after {
+    content: ""; position: absolute; left: 8px; top: 24px; bottom: 1px; width: 1px;
+    background: var(--border);
+  }
+  .flow-col.audio .steps li.key::before { background: var(--audio); }
+  .flow-col.control .steps li.key::before { background: var(--accent); }
+  .flow-col.event .steps li.key::before { background: var(--event); }
+  .steps li .lbl { display: block; font-family: var(--sans); font-size: 0.74rem; color: var(--fg-faint); margin-top: 2px; }
+
+  /* layer */
+  .layer { margin-bottom: 52px; }
+  .layer-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px 14px; margin-bottom: 8px; }
+  .layer-head .idx {
+    font-family: var(--mono); font-weight: 700; font-size: 1.4rem; color: var(--fg-faint);
+    line-height: 1;
+  }
+  .layer-head .name { font-weight: 700; font-size: 1.35rem; letter-spacing: -0.02em; }
+  .layer-path { font-family: var(--mono); font-size: 0.82rem; color: var(--fg-faint); margin: 0 0 20px; }
+
+  /* card = details, stacked full width */
+  .card {
+    border: 1px solid var(--border); border-radius: 16px; background: var(--card);
+    margin-bottom: 16px; border-left: 4px solid var(--border-strong);
+    overflow: hidden;
+  }
+  .card.audio { border-left-color: var(--audio); }
+  .card.control { border-left-color: var(--accent); }
+  .card.event { border-left-color: var(--event); }
+  .card.both { border-left-color: var(--accent); box-shadow: inset 3px 0 0 var(--audio); }
+
+  .card > summary {
+    list-style: none; cursor: pointer; padding: 20px 56px 20px 22px;
+    display: block; position: relative;
+  }
+  .card > summary::-webkit-details-marker { display: none; }
+  .card > summary::after {
+    content: "+"; position: absolute; right: 22px; top: 50%; transform: translateY(-50%);
+    font-size: 1.5rem; font-weight: 300; line-height: 1; color: var(--fg-faint);
+    transition: transform .2s;
+  }
+  .card[open] > summary::after { content: "–"; }
+  .card > summary:hover { background: color-mix(in srgb, var(--fg) 3%, transparent); }
+  .card > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+  .card .name-row { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px 12px; }
+  .card h4 { margin: 0; font-family: var(--mono); font-size: 1.2rem; letter-spacing: -0.01em; }
+  .card .kind { font-size: 0.74rem; letter-spacing: 0.05em; text-transform: uppercase; color: var(--fg-faint); }
+  .card .role { margin: 10px 0 0; color: var(--fg-dim); font-size: 0.98rem; max-width: 62ch; }
+  .card .loc {
+    display: inline-block; margin-top: 14px; font-family: var(--mono); font-size: 0.76rem;
+    color: var(--fg-faint); background: var(--bg); padding: 3px 9px; border-radius: 7px;
+    border: 1px solid var(--border);
+  }
+
+  .body { padding: 4px 22px 22px; }
+  .sect { padding-top: 20px; }
+  .sect + .sect { margin-top: 4px; }
+  .sect-label {
+    font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--fg-faint);
+    margin-bottom: 12px; font-weight: 650;
+  }
+  .field {
+    display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline;
+    padding: 7px 0; border-top: 1px solid var(--border);
+    font-family: var(--mono); font-size: 0.92rem;
+  }
+  .sect .field:first-of-type { border-top: none; }
+  .field .k { color: var(--fg); min-width: 110px; }
+  .field .t { color: var(--accent); }
+  .card.audio .field .t { color: var(--audio); }
+  .card.event .field .t { color: var(--event); }
+  .field .d { font-family: var(--sans); color: var(--fg-dim); font-size: 0.86rem; flex: 1 1 180px; min-width: 0; }
+
+  .method { padding: 12px 0; border-top: 1px solid var(--border); }
+  .sect .method:first-of-type { border-top: none; }
+  .method .sig { font-family: var(--mono); font-size: 0.92rem; color: var(--fg); line-height: 1.5; }
+  .method .desc { color: var(--fg-dim); font-size: 0.9rem; margin-top: 4px; }
+
+  .tip { font-size: 0.92rem; color: var(--fg-dim); margin: 18px 0 0; }
+  .tip b { color: var(--fg); }
+  .tip code { font-family: var(--mono); font-size: 0.86em; background: var(--bg); padding: 1px 6px; border-radius: 6px; border: 1px solid var(--border); }
+
+  /* connector arrow between layers */
+  .between { text-align: center; margin: -32px 0 32px; }
+  .between span {
+    font-family: var(--mono); font-size: 0.82rem; color: var(--fg-dim);
+    display: inline-block; padding: 6px 16px; border-radius: 999px;
+    border: 1px dashed var(--border-strong); background: var(--bg);
+  }
+
+  footer {
+    margin-top: 56px; padding-top: 28px; border-top: 1px solid var(--border);
+  }
+  footer h3 { margin: 0 0 14px; font-size: 1.1rem; }
+  footer ol { margin: 0; padding-left: 22px; }
+  footer li { color: var(--fg-dim); font-size: 0.96rem; margin-bottom: 10px; }
+  footer code { font-family: var(--mono); font-size: 0.86em; color: var(--fg); background: var(--card); padding: 2px 7px; border-radius: 6px; border: 1px solid var(--border); }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <div class="toolbar-inner">
+    <span class="brand">Chor<b>us</b> · architecture</span>
+    <span class="spacer"></span>
+    <button class="btn" id="expand-all" type="button">Expand all</button>
+    <button class="btn" id="collapse-all" type="button">Collapse all</button>
+    <button class="btn" id="theme" type="button">◐ Theme</button>
+  </div>
+</div>
+
+<div class="wrap">
+  <h1>Chorus Architecture Map</h1>
+  <p class="lede">Every struct, its fields, and its methods across the five layers of the multi-output audio router. Each card folds open for detail. Three flows run through it: audio down to your devices, control from the UI into the engine, and events back from the engine to the UI.</p>
+
+  <div class="legend">
+    <span class="item"><span class="dot audio"></span> Audio path — samples flowing to your devices</span>
+    <span class="item"><span class="dot control"></span> Control path — UI requests flowing to the engine</span>
+    <span class="item"><span class="dot event"></span> Event path — engine announcements back to the UI</span>
+  </div>
+  <p class="maint">Source of truth is the code; this page mirrors it. Each card carries its <code>file:line</code> — update the matching card in the same commit that changes a struct.</p>
+
+  <!-- ===================== TWO FLOWS ===================== -->
+  <p class="h2">The three flows at a glance</p>
+  <div class="flows">
+    <div class="flow-col audio">
+      <h3><span class="dot audio"></span> Audio — one capture → many devices</h3>
+      <ol class="steps">
+        <li>system audio plays</li>
+        <li>default output device</li>
+        <li class="key">CaptureSource <span class="lbl">WASAPI loopback</span></li>
+        <li class="key">push into N ring buffers <span class="lbl">the fan-out</span></li>
+        <li class="key">OutputSink × N <span class="lbl">pop + ×volume / mute</span></li>
+        <li>sink devices play</li>
+      </ol>
+    </div>
+    <div class="flow-col control">
+      <h3><span class="dot control"></span> Control — UI request → engine</h3>
+      <ol class="steps">
+        <li>drag a slider / click mute</li>
+        <li class="key">invoke("set_…") <span class="lbl">JS → Rust</span></li>
+        <li class="key">#[tauri::command] fn</li>
+        <li class="key">Chorus.set_… → tx.send(Command)</li>
+        <li class="key">audio thread loop</li>
+        <li class="key">Router → sink atomic</li>
+      </ol>
+    </div>
+    <div class="flow-col event">
+      <h3><span class="dot event"></span> Events — engine announces → UI repaints</h3>
+      <ol class="steps">
+        <li>default device changes (re-tap)</li>
+        <li class="key">event_tx.send(Event::DevicesChanged) <span class="lbl">plain Rust channel</span></li>
+        <li class="key">bridge thread: for ev in event_rx</li>
+        <li class="key">handle.emit("state-changed", state()) <span class="lbl">Rust → JS</span></li>
+        <li class="key">listen("state-changed", …)</li>
+        <li>renderState(payload) repaints</li>
+      </ol>
+    </div>
+  </div>
+
+  <!-- ===================== LAYERS ===================== -->
+  <p class="h2">The five layers</p>
+
+  <!-- LAYER 1 -->
+  <div class="layer">
+    <div class="layer-head"><span class="idx">1</span><span class="name">Frontend (Webview)</span></div>
+    <p class="layer-path">desktop/src/ — index.html · main.js · styles.css</p>
+
+    <details class="card control">
+      <summary>
+        <div class="name-row"><h4>UI renderer</h4><span class="kind">module · main.js</span></div>
+        <p class="role">Reads the State snapshot and draws the source + sink cards; wires each control to an invoke.</p>
+        <span class="loc">desktop/src/main.js</span>
+      </summary>
+      <div class="body">
+        <div class="sect">
+          <div class="sect-label">key functions</div>
+          <div class="method"><div class="sig">renderState(state)</div><div class="desc">builds source controls + one card per sink from the snapshot</div></div>
+          <div class="method"><div class="sig">pct(v)</div><div class="desc">0.0–1.0 → "NN%" label</div></div>
+        </div>
+        <div class="sect">
+          <div class="sect-label">startup (event-driven — no polling)</div>
+          <div class="field"><span class="k">invoke</span><span class="t">"get_state".then(renderState)</span><span class="d">one-time initial paint</span></div>
+          <div class="field"><span class="k">listen</span><span class="t">"state-changed"</span><span class="d">repaint on every engine announcement</span></div>
+        </div>
+        <div class="sect">
+          <div class="sect-label">calls out</div>
+          <div class="field"><span class="k">invoke</span><span class="t">"set_volume" · "set_sink_mute"</span></div>
+          <div class="field"><span class="k">invoke</span><span class="t">"set_source_volume" · "set_source_mute"</span></div>
+        </div>
+      </div>
+    </details>
+  </div>
+  <div class="between"><span>↓ invoke(cmd, args) &nbsp;·&nbsp; ↑ get_state() + listen("state-changed")</span></div>
+
+  <!-- LAYER 2 -->
+  <div class="layer">
+    <div class="layer-head"><span class="idx">2</span><span class="name">Tauri bridge</span></div>
+    <p class="layer-path">desktop/src-tauri/src/lib.rs</p>
+
+    <details class="card control">
+      <summary>
+        <div class="name-row"><h4>run()</h4><span class="kind">commands + setup</span></div>
+        <p class="role">Launches the engine, stores the handle in Tauri's managed state, registers the commands, and bridges engine events out to the UI.</p>
+        <span class="loc">lib.rs:34</span>
+      </summary>
+      <div class="body">
+        <div class="sect">
+          <div class="sect-label">wiring</div>
+          <div class="field"><span class="k">let (chorus, events)</span><span class="d">launch() returns the handle + an Event receiver</span></div>
+          <div class="field"><span class="k">.manage(chorus)</span><span class="d">type-keyed registry; injected into commands</span></div>
+          <div class="field"><span class="k">.setup(…)</span><span class="d">spawn the event-bridge thread (below)</span></div>
+          <div class="field"><span class="k">generate_handler!</span><span class="d">route invoke names → fns</span></div>
+        </div>
+        <div class="sect">
+          <div class="sect-label">#[tauri::command] fns</div>
+          <div class="method"><div class="sig">set_volume(index, volume, state)</div><div class="desc">→ state.set_sink_volume</div></div>
+          <div class="method"><div class="sig">set_sink_mute(index, muted, state)</div><div class="desc">→ state.set_sink_mute</div></div>
+          <div class="method"><div class="sig">set_source_volume(volume, state)</div><div class="desc">→ state.set_source_volume</div></div>
+          <div class="method"><div class="sig">set_source_mute(muted, state)</div><div class="desc">→ state.set_source_mute</div></div>
+          <div class="method"><div class="sig">get_state(state) → State</div><div class="desc">→ state.state(), serialized to JS</div></div>
+        </div>
+        <div class="sect">
+          <div class="sect-label">event bridge (inside .setup)</div>
+          <div class="method"><div class="sig">thread: for _ev in events { handle.emit("state-changed", chorus.state()) }</div><div class="desc">the announcer — the one place allowed to touch Tauri; turns each Rust Event into an emit to JS</div></div>
+        </div>
+        <p class="tip"><b>tauri::State&lt;'_, Chorus&gt;</b> is dependency injection: Tauri looks up the one managed <code>Chorus</code> by type and hands it to each command.</p>
+      </div>
+    </details>
+  </div>
+  <div class="between"><span>↓ state.set_…() &nbsp;·&nbsp; ↑ Event receiver drives emit("state-changed")</span></div>
+
+  <!-- LAYER 3 -->
+  <div class="layer">
+    <div class="layer-head"><span class="idx">3</span><span class="name">Actor / headless core</span></div>
+    <p class="layer-path">crates/chorus/src/app.rs</p>
+
+    <details class="card control">
+      <summary>
+        <div class="name-row"><h4>Chorus</h4><span class="kind">struct · the handle</span></div>
+        <p class="role">The only thing the UI holds. Send + Sync + Clone, so it can be shared freely (Tauri and the event-bridge thread each hold one) — the !Send Router never crosses this line.</p>
+        <span class="loc">app.rs:44</span>
+      </summary>
+      <div class="body">
+        <div class="sect">
+          <div class="sect-label">fields</div>
+          <div class="field"><span class="k">tx</span><span class="t">Sender&lt;Command&gt;</span><span class="d">drop requests into the booth</span></div>
+          <div class="field"><span class="k">state</span><span class="t">Arc&lt;Mutex&lt;State&gt;&gt;</span><span class="d">shared snapshot</span></div>
+        </div>
+        <div class="sect">
+          <div class="sect-label">methods</div>
+          <div class="method"><div class="sig">launch() → (Self, Receiver&lt;Event&gt;)</div><div class="desc">spawn audio thread, run build() inside it; return the handle + the Event receiver for the bridge</div></div>
+          <div class="method"><div class="sig">state() → State</div><div class="desc">lock + clone the whiteboard</div></div>
+          <div class="method"><div class="sig">set_sink_volume · set_sink_mute</div><div class="desc">tx.send(Command::…)</div></div>
+          <div class="method"><div class="sig">set_source_volume · set_source_mute</div><div class="desc">tx.send(Command::…)</div></div>
+        </div>
+      </div>
+    </details>
+
+    <details class="card control">
+      <summary>
+        <div class="name-row"><h4>build() &amp; the loop</h4><span class="kind">fn + thread</span></div>
+        <p class="role">build() assembles the Router and seeds the whiteboard; the spawned loop applies Commands forever.</p>
+        <span class="loc">app.rs:49 · loop app.rs:133</span>
+      </summary>
+      <div class="body">
+        <div class="sect">
+          <div class="sect-label">build() → (Router, String)</div>
+          <p class="tip">pick default output as source · enumerate sinks · filter self + "Hands-Free" · capacity = rate·ch/10 · build Router · max sink OS vol · <b>seed State</b></p>
+        </div>
+        <div class="sect">
+          <div class="sect-label">recv_timeout(1s) loop</div>
+          <div class="method"><div class="sig">Ok(Command)</div><div class="desc">apply to router + update the matching State field</div></div>
+          <div class="method"><div class="sig">Err(Timeout)</div><div class="desc">default changed? → rebuild via build() (re-tap), then event_tx.send(DevicesChanged)</div></div>
+          <div class="method"><div class="sig">Err(Disconnected)</div><div class="desc">handle dropped → break the loop</div></div>
+        </div>
+      </div>
+    </details>
+
+    <details class="card both">
+      <summary>
+        <div class="name-row"><h4>State</h4><span class="kind">struct · snapshot (Serialize)</span></div>
+        <p class="role">The "whiteboard" — a plain, UI-facing mirror of the engine. Written by the thread, read by the UI.</p>
+        <span class="loc">app.rs:25</span>
+      </summary>
+      <div class="body">
+        <div class="sect">
+          <div class="sect-label">fields</div>
+          <div class="field"><span class="k">running</span><span class="t">bool</span></div>
+          <div class="field"><span class="k">source_name</span><span class="t">String</span></div>
+          <div class="field"><span class="k">source_volume</span><span class="t">f32</span></div>
+          <div class="field"><span class="k">source_muted</span><span class="t">bool</span></div>
+          <div class="field"><span class="k">devices</span><span class="t">Vec&lt;DeviceInfo&gt;</span></div>
+          <div class="field"><span class="k">sinks</span><span class="t">Vec&lt;SinkState&gt;</span></div>
+        </div>
+      </div>
+    </details>
+
+    <details class="card control">
+      <summary>
+        <div class="name-row"><h4>Command</h4><span class="kind">enum · the vocabulary</span></div>
+        <p class="role">Every request the UI can make, as a message carried down the channel.</p>
+        <span class="loc">app.rs:37</span>
+      </summary>
+      <div class="body">
+        <div class="sect">
+          <div class="sect-label">variants</div>
+          <div class="field"><span class="k">SetSinkVolume</span><span class="t">{ index: usize, volume: f32 }</span></div>
+          <div class="field"><span class="k">SetSinkMute</span><span class="t">{ index: usize, muted: bool }</span></div>
+          <div class="field"><span class="k">SetSourceVolume</span><span class="t">(f32)</span></div>
+          <div class="field"><span class="k">SetSourceMute</span><span class="t">(bool)</span></div>
+        </div>
+      </div>
+    </details>
+
+    <details class="card event">
+      <summary>
+        <div class="name-row"><h4>Event</h4><span class="kind">enum · engine announcements</span></div>
+        <p class="role">The engine's outbound vocabulary — plain Rust, no Tauri. Sent up the event channel; the bridge turns it into an emit.</p>
+        <span class="loc">app.rs</span>
+      </summary>
+      <div class="body">
+        <div class="sect">
+          <div class="sect-label">variants</div>
+          <div class="field"><span class="k">DevicesChanged</span><span class="d">source / sink set changed after a re-tap</span></div>
+        </div>
+      </div>
+    </details>
+
+    <details class="card both">
+      <summary>
+        <div class="name-row"><h4>SinkState · DeviceInfo</h4><span class="kind">structs · snapshot rows</span></div>
+        <p class="role">The per-row shapes inside State's vectors.</p>
+        <span class="loc">app.rs:18 · app.rs:12</span>
+      </summary>
+      <div class="body">
+        <div class="sect">
+          <div class="sect-label">SinkState</div>
+          <div class="field"><span class="k">name</span><span class="t">String</span></div>
+          <div class="field"><span class="k">volume</span><span class="t">f32</span></div>
+          <div class="field"><span class="k">muted</span><span class="t">bool</span></div>
+        </div>
+        <div class="sect">
+          <div class="sect-label">DeviceInfo</div>
+          <div class="field"><span class="k">name</span><span class="t">String</span></div>
+          <div class="field"><span class="k">is_default</span><span class="t">bool</span></div>
+        </div>
+      </div>
+    </details>
+
+    <p class="tip"><b>Why this layer exists:</b> a cpal <code>Stream</code> is <b>!Send</b> on Windows, so the Router can't be shared across threads. It's locked inside the spawned audio thread; the outside world touches it only through <code>tx</code> (requests in) and <code>state</code> (snapshot out).</p>
+  </div>
+  <div class="between"><span>↓ router.set_…() &nbsp;·&nbsp; the audio path lives entirely below here</span></div>
+
+  <!-- LAYER 4 -->
+  <div class="layer">
+    <div class="layer-head"><span class="idx">4</span><span class="name">Audio engine</span></div>
+    <p class="layer-path">crates/chorus/src/ — router.rs · source.rs · output.rs · (pure, zero UI deps)</p>
+
+    <details class="card both">
+      <summary>
+        <div class="name-row"><h4>Router</h4><span class="kind">struct · the conductor</span></div>
+        <p class="role">Ties one source to N sinks; the single object that owns the running audio.</p>
+        <span class="loc">router.rs:7</span>
+      </summary>
+      <div class="body">
+        <div class="sect">
+          <div class="sect-label">fields</div>
+          <div class="field"><span class="k">_source</span><span class="t">CaptureSource</span><span class="d">the one capture</span></div>
+          <div class="field"><span class="k">sinks</span><span class="t">Vec&lt;OutputSink&gt;</span><span class="d">all mirrored devices</span></div>
+        </div>
+        <div class="sect">
+          <div class="sect-label">methods</div>
+          <div class="method"><div class="sig">new(src_dev, src_cfg, sink_specs: Vec&lt;(Device, f32)&gt;, capacity) → Result&lt;Router&gt;</div><div class="desc">build each OutputSink (skip on err), collect producers, then build CaptureSource</div></div>
+          <div class="method"><div class="sig">set_sink_volume(index, v) · set_sink_mute(index, muted)</div><div class="desc">forward to sinks[index] (bounds-checked)</div></div>
+          <div class="method"><div class="sig">set_source_volume(v) · set_source_mute(m) → Result</div><div class="desc">move the real OS endpoint via volumecontrol (out-of-path)</div></div>
+          <div class="method"><div class="sig">sinks() → &amp;[OutputSink] · sink_counts() → usize</div><div class="desc">read-only views for build() / UI</div></div>
+        </div>
+      </div>
+    </details>
+
+    <details class="card audio">
+      <summary>
+        <div class="name-row"><h4>CaptureSource</h4><span class="kind">struct · capture + fan-out</span></div>
+        <p class="role">WASAPI loopback on the default output device = captures system audio; copies each chunk into every ring buffer.</p>
+        <span class="loc">source.rs:4</span>
+      </summary>
+      <div class="body">
+        <div class="sect">
+          <div class="sect-label">fields</div>
+          <div class="field"><span class="k">_stream</span><span class="t">cpal::Stream</span><span class="d">held to keep capture alive</span></div>
+        </div>
+        <div class="sect">
+          <div class="sect-label">method</div>
+          <div class="method"><div class="sig">new(device, config, producers: Vec&lt;HeapProd&lt;f32&gt;&gt;) → Result&lt;Self&gt;</div><div class="desc">build_input_stream on an output device (auto loopback); the input callback fans data:&amp;[f32] into every producer — this is the fan-out</div></div>
+        </div>
+      </div>
+    </details>
+
+    <details class="card audio">
+      <summary>
+        <div class="name-row"><h4>OutputSink</h4><span class="kind">struct · per-device playback</span></div>
+        <p class="role">One per mirrored device. Pulls from its ring buffer, applies software volume/mute in the callback.</p>
+        <span class="loc">output.rs:7</span>
+      </summary>
+      <div class="body">
+        <div class="sect">
+          <div class="sect-label">fields</div>
+          <div class="field"><span class="k">device_name</span><span class="t">String</span></div>
+          <div class="field"><span class="k">_stream</span><span class="t">cpal::Stream</span><span class="d">output stream, kept alive</span></div>
+          <div class="field"><span class="k">volume</span><span class="t">Arc&lt;AtomicU32&gt;</span><span class="d">f32 bits; lock-free</span></div>
+          <div class="field"><span class="k">muted</span><span class="t">Arc&lt;AtomicBool&gt;</span><span class="d">lock-free flag</span></div>
+        </div>
+        <div class="sect">
+          <div class="sect-label">methods</div>
+          <div class="method"><div class="sig">new(device, config, capacity, initial_volume) → Result&lt;(OutputSink, HeapProd&lt;f32&gt;)&gt;</div><div class="desc">split the ring; callback: pop_slice → ×vol (0 if muted) → zero-fill underrun. Returns the sink and its producer.</div></div>
+          <div class="method"><div class="sig">set_volume(v) · get_volume() · set_mute(m)</div><div class="desc">store/load the atomics the callback reads</div></div>
+        </div>
+      </div>
+    </details>
+
+    <p class="tip"><b>Ring buffer (ringbuf, SPSC):</b> <code>HeapRb::&lt;f32&gt;::new(capacity).split()</code> → <code>(HeapProd, HeapCons)</code>. The producer lives in the capture callback, the consumer in the output callback — a lock-free pipe between two unsynced clocks. Capacity ≈ 100 ms.</p>
+  </div>
+  <div class="between"><span>↕ cpal streams talk to the OS</span></div>
+
+  <!-- LAYER 5 -->
+  <div class="layer">
+    <div class="layer-head"><span class="idx">5</span><span class="name">OS / hardware</span></div>
+    <p class="layer-path">Windows · WASAPI · cpal 0.18 · volumecontrol</p>
+
+    <details class="card audio">
+      <summary>
+        <div class="name-row"><h4>WASAPI loopback</h4><span class="kind">capture</span></div>
+        <p class="role">Captures whatever is playing on the default output device — this is how Chorus "hears" system audio with no microphone.</p>
+      </summary>
+      <div class="body"><div class="sect"><p class="tip">cpal 0.18 auto-enables loopback when build_input_stream is called on a render (output) device.</p></div></div>
+    </details>
+
+    <details class="card audio">
+      <summary>
+        <div class="name-row"><h4>Sink devices</h4><span class="kind">playback</span></div>
+        <p class="role">Each OutputSink drives one render endpoint — speakers, headphones, HDMI.</p>
+      </summary>
+      <div class="body"><div class="sect"><p class="tip">Independent clocks; the ring buffer absorbs the drift between capture and each sink.</p></div></div>
+    </details>
+
+    <details class="card control">
+      <summary>
+        <div class="name-row"><h4>volumecontrol</h4><span class="kind">endpoint volume</span></div>
+        <p class="role">AudioDevice::from_default() / from_name() — moves the real Windows slider for the source (out-of-path, can fail).</p>
+      </summary>
+      <div class="body"><div class="sect"><p class="tip">Also used to max each sink's OS endpoint at startup, so our software gain is the only sink attenuator.</p></div></div>
+    </details>
+  </div>
+
+  <footer>
+    <h3>Keeping this map in sync</h3>
+    <ol>
+      <li>The <b>code is the source of truth</b>; this page mirrors it. Edit it in the same commit that changes a struct.</li>
+      <li>Add/remove a <b>field or method</b> → update that struct's card and its <code>file:line</code> anchor.</li>
+      <li>Add a <b>Command</b> or <b>#[tauri::command]</b> → add a row in the Command card and the Tauri bridge card.</li>
+      <li>New data flow (e.g. the <b>events rung</b>: Rust → JS <code>emit</code>/<code>listen</code>) → add a column to the flows and a connector.</li>
+      <li>Lives at <code>docs/architecture.html</code> — open in any browser, no build step.</li>
+    </ol>
+  </footer>
+</div>
+
+<script>
+  (function () {
+    var root = document.documentElement, KEY = "chorus-arch-theme";
+    try { var s = localStorage.getItem(KEY); if (s === "light" || s === "dark") root.setAttribute("data-theme", s); } catch (e) {}
+    var t = document.getElementById("theme");
+    if (t) t.addEventListener("click", function () {
+      var next = root.getAttribute("data-theme") === "dark" ? "light" : "dark";
+      root.setAttribute("data-theme", next);
+      try { localStorage.setItem(KEY, next); } catch (e) {}
+    });
+    function setAll(o) { document.querySelectorAll("details.card").forEach(function (d) { d.open = o; }); }
+    var ea = document.getElementById("expand-all"), ca = document.getElementById("collapse-all");
+    if (ea) ea.addEventListener("click", function () { setAll(true); });
+    if (ca) ca.addEventListener("click", function () { setAll(false); });
+  })();
+</script>
+</body>
+</html>

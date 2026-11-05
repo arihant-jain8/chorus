@@ -1,4 +1,5 @@
 use chorus::app::{Chorus, State};
+use tauri::{Emitter, Manager};
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
@@ -32,11 +33,24 @@ fn get_state(state: tauri::State<'_, Chorus>) -> State {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let chorus = Chorus::launch(); // 1) state the engine, get handle
+    let (chorus, events) = Chorus::launch(); // 1) state the engine, get handle
+    let chorus_events = chorus.clone(); // clone for the announcer thread
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .manage(chorus) // hand the handle to Tauri
+        .setup(move |app| {
+            let handle = app.handle().clone();
+
+            // ANNOUNCER thread
+            std::thread::spawn(move || {
+                for _ev in events {
+                    let _ = handle.emit("state-changed", chorus_events.state());
+                }
+            });
+
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             greet,
             set_volume,

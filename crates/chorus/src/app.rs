@@ -1,4 +1,4 @@
-use std::sync::mpsc::{RecvTimeoutError, Sender, channel};
+use std::sync::mpsc::{Receiver, RecvTimeoutError, Sender, channel};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -34,6 +34,7 @@ pub struct State {
     pub sinks: Vec<SinkState>,
 }
 
+// Instructions from audience to DJ
 pub enum Command {
     SetSinkVolume { index: usize, volume: f32 },
     SetSourceVolume(f32),
@@ -41,6 +42,12 @@ pub enum Command {
     SetSourceMute(bool),
 }
 
+// Announcements from DJ
+pub enum Event {
+    DevicesChanged,
+}
+
+#[derive(Clone)]
 pub struct Chorus {
     tx: Sender<Command>,
     state: Arc<Mutex<State>>,
@@ -120,9 +127,10 @@ fn build(state: &Arc<Mutex<State>>) -> (Router, String) {
 }
 
 impl Chorus {
-    pub fn launch() -> Self {
+    pub fn launch() -> (Self, Receiver<Event>) {
         // (1) OUTSIDE the thread - make the slot + whiteboard
         let (tx, rx) = channel::<Command>();
+        let (event_tx, event_rx) = channel::<Event>();
         let state = Arc::new(Mutex::new(State::default()));
         let state_thread = Arc::clone(&state);
 
@@ -173,6 +181,9 @@ impl Chorus {
                                 let (new_router, new_source_name) = build(&state_thread);
                                 router = new_router;
                                 source_name = new_source_name;
+
+                                // sending DevicesChanged signal to the UI
+                                let _ = event_tx.send(Event::DevicesChanged);
                             }
                         }
                     }
@@ -182,7 +193,7 @@ impl Chorus {
             }
         });
 
-        Chorus { tx, state }
+        (Chorus { tx, state }, event_rx)
     }
 
     pub fn state(&self) -> State {

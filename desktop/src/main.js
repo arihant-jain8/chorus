@@ -1,6 +1,5 @@
 const { invoke } = window.__TAURI__.core;
-
-let shownSignature = "";
+const { listen } = window.__TAURI__.event;
 
 function pct(v) {
   return Math.round(v * 100) + "%";
@@ -102,34 +101,10 @@ async function renderState(state) {
   });
 }
 
-async function refresh() {
-  const state = await invoke("get_state");
-  const signature = state.source_name + "|" + state.sinks.map((s) => s.name).join("||");
-  if (signature !== shownSignature) {
-    renderState(state);
-    shownSignature = signature;
-  }
-}
+// first paint: ask once for the current state (then event only fires on CHANGES)
+invoke("get_state").then(renderState);
 
-refresh();
-setInterval(refresh, 1500);
-
-
-
-
-// let greetInputEl;
-// let greetMsgEl;
-
-// async function greet() {
-//   // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-//   greetMsgEl.textContent = await invoke("greet", { name: greetInputEl.value });
-// }
-
-// window.addEventListener("DOMContentLoaded", () => {
-//   greetInputEl = document.querySelector("#greet-input");
-//   greetMsgEl = document.querySelector("#greet-msg");
-//   document.querySelector("#greet-form").addEventListener("submit", (e) => {
-//     e.preventDefault();
-//     greet();
-//   });
-// });
+// after that, repaint whenever the engine announces a change
+listen("state-changed", (event) => {
+  renderState(event.payload);
+});
