@@ -7,7 +7,7 @@ volume and mute controls.
 The project is organized around a reusable Rust audio engine and a Tauri
 desktop frontend.
 
-![Chorus desktop screenshot](chorus_ss.jfif)
+![Chorus desktop screenshot](chorus_ss.png)
 
 ## Features
 
@@ -26,7 +26,7 @@ desktop/
   src/          Tauri frontend (HTML, CSS, and JavaScript)
   src-tauri/    Tauri application and Rust-to-frontend commands
 Cargo.toml      Rust workspace manifest
-chorus_ss.jfif  Application screenshot
+chorus_ss.png  Application screenshot
 ```
 
 The `chorus` crate contains the audio capture, routing, and output logic. The

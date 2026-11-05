@@ -1,4 +1,4 @@
-use std::sync::mpsc::{Sender, channel, RecvTimeoutError};
+use std::sync::mpsc::{RecvTimeoutError, Sender, channel};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -58,7 +58,10 @@ fn build(state: &Arc<Mutex<State>>) -> (Router, String) {
         .config();
     let source_name = source_device.to_string();
 
-    let all_outputs: Vec<Device> = host.output_devices().expect("Could not enumerate output devices").collect();
+    let all_outputs: Vec<Device> = host
+        .output_devices()
+        .expect("Could not enumerate output devices")
+        .collect();
     let device_list: Vec<DeviceInfo> = all_outputs
         .iter()
         .map(|d| DeviceInfo {
@@ -74,7 +77,8 @@ fn build(state: &Arc<Mutex<State>>) -> (Router, String) {
 
     let capacity = (source_config.sample_rate as usize) * (source_config.channels as usize) / 10;
 
-    let router = Router::new(&source_device, &source_config, sink_specs, capacity).expect("Failed to build router");
+    let router = Router::new(&source_device, &source_config, sink_specs, capacity)
+        .expect("Failed to build router");
 
     println!("\nRouter Started\nDefault(source) : {}", source_name);
     // Setting all the sink device's volume to 100 default
@@ -82,8 +86,8 @@ fn build(state: &Arc<Mutex<State>>) -> (Router, String) {
         match AudioDevice::from_name(&sink.device_name) {
             Ok(dev) => match dev.set_vol(100) {
                 Ok(()) => println!("{}: {}", i, sink.device_name),
-                Err(e) => eprintln!("couldn't set volume for {}: {}", sink.device_name, e)
-            }
+                Err(e) => eprintln!("couldn't set volume for {}: {}", sink.device_name, e),
+            },
             Err(e) => eprintln!("no endpoint match for {}: {}", sink.device_name, e),
         }
     }
@@ -94,15 +98,22 @@ fn build(state: &Arc<Mutex<State>>) -> (Router, String) {
         s.running = true;
 
         s.source_name = source_name.clone();
-        s.source_volume = AudioDevice::from_default().and_then(|d| d.get_vol()).map(|v| v as f32 / 100.0).unwrap_or(1.0);
+        s.source_volume = AudioDevice::from_default()
+            .and_then(|d| d.get_vol())
+            .map(|v| v as f32 / 100.0)
+            .unwrap_or(1.0);
         s.source_muted = false;
 
         s.devices = device_list;
-        s.sinks = router.sinks().iter().map(|sink| SinkState{
-            name: sink.device_name.clone(),
-            volume: sink.get_volume(),
-            muted: false,
-        }).collect();
+        s.sinks = router
+            .sinks()
+            .iter()
+            .map(|sink| SinkState {
+                name: sink.device_name.clone(),
+                volume: sink.get_volume(),
+                muted: false,
+            })
+            .collect();
     }
 
     (router, source_name)
@@ -118,7 +129,7 @@ impl Chorus {
         std::thread::spawn(move || {
             // (2) build the booth: the thread owns ALL the cpal stuff
             let (mut router, mut source_name) = build(&state_thread);
-    
+
             loop {
                 // (4) DJ loop - handle cards forever
                 match rx.recv_timeout(Duration::from_secs(1)) {
@@ -129,10 +140,12 @@ impl Chorus {
                             sink.volume = volume;
                         }
                     }
-    
+
                     Ok(Command::SetSourceVolume(volume)) => {
                         match router.set_source_volume(volume) {
-                            Ok(()) => { state_thread.lock().unwrap().source_volume = volume; }
+                            Ok(()) => {
+                                state_thread.lock().unwrap().source_volume = volume;
+                            }
                             Err(e) => eprintln!("source volume error: {}", e),
                         }
                     }
@@ -140,7 +153,7 @@ impl Chorus {
                     Ok(Command::SetSourceMute(muted)) => match router.set_source_mute(muted) {
                         Ok(()) => state_thread.lock().unwrap().source_muted = muted,
                         Err(e) => eprintln!("source mute error: {}", e),
-                    }
+                    },
 
                     Ok(Command::SetSinkMute { index, muted }) => {
                         router.set_sink_mute(index, muted);
@@ -149,12 +162,12 @@ impl Chorus {
                             sink.muted = muted;
                         }
                     }
-    
+
                     // 1s passed with no card - did the default change?
                     Err(RecvTimeoutError::Timeout) => {
                         if let Some(dev) = cpal::default_host().default_output_device() {
                             let new_default = dev.to_string();
-    
+
                             if new_default != source_name {
                                 println!("\n\ndefault changed -> re-tapping: {}", new_default);
                                 let (new_router, new_source_name) = build(&state_thread);
@@ -163,12 +176,11 @@ impl Chorus {
                             }
                         }
                     }
-    
+
                     Err(RecvTimeoutError::Disconnected) => break,
                 }
             }
         });
-
 
         Chorus { tx, state }
     }

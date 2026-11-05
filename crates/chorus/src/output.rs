@@ -2,7 +2,7 @@ use cpal::traits::{DeviceTrait, StreamTrait};
 use ringbuf::traits::{Consumer, Split};
 use ringbuf::{HeapProd, HeapRb};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU32, AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 
 pub struct OutputSink {
     pub device_name: String,

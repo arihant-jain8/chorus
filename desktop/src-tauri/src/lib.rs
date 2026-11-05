@@ -37,7 +37,14 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .manage(chorus) // hand the handle to Tauri
-        .invoke_handler(tauri::generate_handler![greet, set_volume, set_source_volume, get_state, set_source_mute, set_sink_mute])
+        .invoke_handler(tauri::generate_handler![
+            greet,
+            set_volume,
+            set_source_volume,
+            get_state,
+            set_source_mute,
+            set_sink_mute
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
